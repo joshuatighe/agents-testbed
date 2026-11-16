@@ -1,0 +1,3 @@
+Title: Numbers look wrong sometimes
+
+The app shows the wrong number once in a while. Please fix.

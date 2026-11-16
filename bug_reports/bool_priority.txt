@@ -1,0 +1,6 @@
+Title: Tasks can be created with a boolean as their priority
+
+Priorities are supposed to be exactly 1, 2 or 3 (high, medium, low). But
+create_task("Write docs", priority=True) is accepted instead of raising a
+ValueError, and the new task ends up with priority True instead of a real
+number. Expected: a ValueError("Priority must be 1, 2, or 3").

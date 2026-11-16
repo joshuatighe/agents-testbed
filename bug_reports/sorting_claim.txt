@@ -1,0 +1,5 @@
+Title: Pending tasks are not shown highest priority first
+
+When I list the pending tasks, they seem to come out in the order they were
+created rather than sorted by priority. A priority 1 task should always appear
+before a priority 3 task, even if the priority 3 task was added first.

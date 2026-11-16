@@ -1,0 +1,107 @@
+[Harness] bugrepro | target=/Users/ananyaruia/Desktop/agents-testbed/test-repo | model=qwen3 | max-steps=15
+[Harness] Bug report:
+Title: Tasks can be created with a boolean as their priority
+
+Priorities are supposed to be exactly 1, 2 or 3 (high, medium, low). But
+create_task("Write docs", priority=True) is accepted instead of raising a
+ValueError, and the new task ends up with priority True instead of a real
+number. Expected: a ValueError("Priority must be 1, 2, or 3").
+
+--- Step 1/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] list_files({})
+  [Result] ['README.md', 'cli.py', 'main.py', 'models.py', 'service.py', 'storage.py']
+
+--- Step 2/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] read_file({'path': 'service.py'})
+  [Result] """Business logic for managing tasks. Depends only on a storage object."""
+
+
+class TaskService:
+    def __init__(self, storage):
+        self.storage = storage
+
+    def create_task(self, title, priority=2):
+        title = title.strip()
+        if not title:
+            raise ValueError("Task title 
+
+--- Step 3/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] write_repro_test({'content': 'from service import TaskService\n\nservice = TaskService(None)\ntry:\n    service.create_task("Write docs", priority=True)\n    assert False, "Expected ValueError for boolean priority"\nexcept ValueError as e:\n    assert str(e) == "Priority must be 1, 2, or 3"\n'})
+  [Result] Wrote repro_test.py (255 characters)
+
+--- Step 4/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] run_repro_test({})
+  [Result] {'outcome': 'ERROR', 'return_code': 1, 'stdout': '', 'stderr': 'Traceback (most recent call last):\n  File "/Users/ananyaruia/Desktop/agents-testbed/test-repo/repro_test.py", line 5, in <module>\n    service.create_task("Write docs", priority=True)\n  File "/Users/ananyaruia/Desktop/agents-testbed/t
+
+--- Step 5/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] write_repro_test({'content': 'class MockStorage:\n    def add(self, title, priority):\n        return 42\n\nservice = TaskService(MockStorage())\ntry:\n    service.create_task("Write docs", priority=True)\n    assert False, "Expected ValueError for boolean priority"\nexcept ValueError as e:\n    assert str(e) == "Priority must be 1, 2, or 3"\n'})
+  [Result] Wrote repro_test.py (305 characters)
+
+--- Step 6/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] run_repro_test({})
+  [Result] {'outcome': 'ERROR', 'return_code': 1, 'stdout': '', 'stderr': 'Traceback (most recent call last):\n  File "/Users/ananyaruia/Desktop/agents-testbed/test-repo/repro_test.py", line 5, in <module>\n    service = TaskService(MockStorage())\n              ^^^^^^^^^^^\nNameError: name \'TaskService\' is 
+
+--- Step 7/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] write_repro_test({'content': 'from service import TaskService\nclass MockStorage:\n    def add(self, title, priority):\n        return 42\n\nservice = TaskService(MockStorage())\ntry:\n    service.create_task("Write docs", priority=True)\n    assert False, "Expected ValueError for boolean priority"\nexcept ValueError as e:\n    assert str(e) == "Priority must be 1, 2, or 3"\n'})
+  [Result] Wrote repro_test.py (337 characters)
+
+--- Step 8/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] run_repro_test({})
+  [Result] {'outcome': 'FAILED_ASSERTION', 'return_code': 1, 'stdout': '', 'stderr': 'Traceback (most recent call last):\n  File "/Users/ananyaruia/Desktop/agents-testbed/test-repo/repro_test.py", line 9, in <module>\n    assert False, "Expected ValueError for boolean priority"\n           ^^^^^\nAssertionErro
+
+--- Step 9/15 ---
+[Harness] Sending messages to model...
+[Harness] Model made no tool calls.
+The test failed because the code did **not** raise a `ValueError` when `priority=True`, which contradicts the expected behavior. This indicates the code may implicitly convert booleans to integers (e.g., `True == 1`), bypassing the explicit check for `1, 2, 3`.
+
+### Root Cause
+The `create_task` method likely uses a condition like:
+```python
+if priority not in (1, 2, 3):
+    raise ValueError("Priority must be 1, 2, or 3")
+```
+However, in Python, `True` evaluates to `1` in numeric contexts. If the code uses:
+```python
+if priority not in (1, 2, 3):
+```
+and `priority` is `True`, it will pass the check (since `True == 1`), avoiding the error.
+
+### Fix
+Modify the check to explicitly reject booleans:
+```python
+if not isinstance(priority, int) or priority not in (1, 2, 3):
+    raise ValueError("Priority must be 1, 2, or 3")
+```
+
+### Verdict
+**REPRODUCED**  
+The bug is present: booleans like `True` are incorrectly accepted as valid priorities.
+
+--- Step 10/15 ---
+[Harness] Sending messages to model...
+[Harness] Model requested 1 tool call(s):
+  [Tool] report_verdict({'summary': 'The bug report claims creating a task with a boolean priority (e.g., True) should raise ValueError. The test confirmed this by passing a boolean priority, but the code did not raise an error, instead accepting it as 1 (since True == 1 in numeric contexts). This matches the reported behavior.', 'verdict': 'REPRODUCED'})
+  [Result] Verdict recorded: REPRODUCED
+
+==================== RESULT ====================
+Verdict : REPRODUCED
+Summary : The bug report claims creating a task with a boolean priority (e.g., True) should raise ValueError. The test confirmed this by passing a boolean priority, but the code did not raise an error, instead accepting it as 1 (since True == 1 in numeric contexts). This matches the reported behavior.
+Steps   : 10/15
+Test    : /Users/ananyaruia/Desktop/agents-testbed/test-repo/repro_test.py  (re-run it with: python repro_test.py)
+================================================
